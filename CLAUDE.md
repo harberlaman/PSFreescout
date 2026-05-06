@@ -54,8 +54,16 @@ Get-FSConversationList -Status active -PageSize 10
 Get-FSConversationList -Subject "password reset" -AssignedTo 5 -SortField updatedAt
 
 # Full-text search via Meilisearch (requires Meilisearch config)
+# Returns full conversation objects from the FreeScout API
 Search-FSMeilisearch -Query "printer jam" -Limit 10
 Search-FSMeilisearch -Query "BNRC" -Status 3 -MailboxId 1,2
+Search-FSMeilisearch -Subject "password reset"                  # Field-specific search
+Search-FSMeilisearch -Subject "reset" -Body "password"          # Multi-field search
+Search-FSMeilisearch -Status 1 -HasNoTags                       # Filter-only (no query)
+Search-FSMeilisearch -Query "error" -TagId 5,12                 # Tag filter
+Search-FSMeilisearch -NotTagId 3 -Status 1                      # Tag exclusion
+Search-FSMeilisearch -Query "invoice" -CreatedAfter "2026-01-01"
+Search-FSMeilisearch -Query "test" -Embed "threads,tags"        # With embedded data
 
 # Tag management
 Set-FSTag -Id 17064 -Tags "exchange","mobile"              # Add (default)
@@ -93,6 +101,7 @@ The `meilisearch` block is optional. Without it, `Search-FSMeilisearch` is unava
 
 - **Config is module-scoped**: `$script:FSConfig` holds the active config. Set via `Set-FSConfig`, auto-loaded from disk on `Import-Module`.
 - **Tag merging**: FreeScout's PUT `/api/conversations/{id}/tags` replaces all tags. `Set-FSTag -Action Add` handles the GET→merge→PUT pattern. `-Action Remove` does GET→subtract→PUT.
-- **Search field mapping**: Meilisearch index uses abbreviated field names (`subj`, `mid`, `uid`, `lr`, `ca`); `Search-FSMeilisearch` transforms these to PascalCase properties in output.
+- **Search two-step**: `Search-FSMeilisearch` queries Meilisearch for matching `conv_id`s, then fetches full conversation objects via `Get-FSConversation`. Supports field-specific searches (Subject, Body, AttachmentName) via `attributesToSearchOn`, and multi-field searches via Meilisearch's `/multi-search` endpoint with result intersection.
+- **Search field mapping**: Meilisearch index uses abbreviated field names (`subj`, `mid`, `uid`, `lr`, `ca`, `cid`, `by_cid`, `tags`, `flwrs`, `att`, etc.) defined by the FasterSearch module.
 - **Status codes**: FreeScout uses numeric statuses in Meilisearch (1=active, 2=pending, 3=closed) but string names in the REST API (`active`, `pending`, `closed`, `spam`).
 - **All public functions return objects** (PSCustomObject), not raw JSON strings.
