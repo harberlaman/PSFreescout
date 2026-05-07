@@ -10,7 +10,7 @@ function Set-FSTag {
         - Remove: removes the specified tags from the conversation.
 
     .PARAMETER Id
-        The conversation ID.
+        One or more conversation IDs. Accepts an array of integers.
 
     .PARAMETER Tags
         One or more tag names. Accepts an array or a comma-separated string.
@@ -29,11 +29,14 @@ function Set-FSTag {
 
     .EXAMPLE
         Set-FSTag -Id 17064 -Tags "obsolete" -Action Remove
+
+    .EXAMPLE
+        Set-FSTag -Id 17064,17065,17066 -Tags "analyzing" -Action Add
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [int]$Id,
+        [int[]]$Id,
 
         [Parameter(Mandatory)]
         [string[]]$Tags,
@@ -51,39 +54,46 @@ function Set-FSTag {
     # Normalize tags: split any comma-separated values, trim whitespace
     $newTags = $Tags | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 
-    $finalTags = $newTags
-
-    if ($Action -eq "Add" -or $Action -eq "Remove") {
-        # GET existing tags
-        $getUri = "$($script:FSConfig.BaseUrl)/api/tags?conversationId=$Id&pageSize=100"
+    foreach ($ConversationId in $Id) {
         try {
-            $existing = Invoke-RestMethod -Uri $getUri -Headers $headers -Method Get
-            $existingTags = @()
-            if ($existing._embedded.tags) {
-                $existingTags = $existing._embedded.tags | ForEach-Object { $_.name }
+            $finalTags = $newTags
+
+            if ($Action -eq "Add" -or $Action -eq "Remove") {
+                # GET existing tags
+                $getUri = "$($script:FSConfig.BaseUrl)/api/tags?conversationId=$ConversationId&pageSize=100"
+                try {
+                    $existing = Invoke-RestMethod -Uri $getUri -Headers $headers -Method Get
+                    $existingTags = @()
+                    if ($existing._embedded.tags) {
+                        $existingTags = $existing._embedded.tags | ForEach-Object { $_.name }
+                    }
+                }
+                catch {
+                    $existingTags = @()
+                }
+
+                if ($Action -eq "Add") {
+                    $finalTags = ($existingTags + $newTags) | Sort-Object -Unique
+                }
+                elseif ($Action -eq "Remove") {
+                    $finalTags = $existingTags | Where-Object { $_ -notin $newTags }
+                }
+            }
+
+            # PUT the final tag list
+            $uri = "$($script:FSConfig.BaseUrl)/api/conversations/$ConversationId/tags"
+            $body = @{ tags = @($finalTags) } | ConvertTo-Json
+
+            $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body $body
+
+            [PSCustomObject]@{
+                ConversationId = $ConversationId
+                Action         = $Action
+                Tags           = $finalTags
             }
         }
         catch {
-            $existingTags = @()
+            Write-Error "Failed to set tags on conversation ${ConversationId}: $_"
         }
-
-        if ($Action -eq "Add") {
-            $finalTags = ($existingTags + $newTags) | Sort-Object -Unique
-        }
-        elseif ($Action -eq "Remove") {
-            $finalTags = $existingTags | Where-Object { $_ -notin $newTags }
-        }
-    }
-
-    # PUT the final tag list
-    $uri = "$($script:FSConfig.BaseUrl)/api/conversations/$Id/tags"
-    $body = @{ tags = @($finalTags) } | ConvertTo-Json
-
-    $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body $body
-
-    [PSCustomObject]@{
-        ConversationId = $Id
-        Action         = $Action
-        Tags           = $finalTags
     }
 }
