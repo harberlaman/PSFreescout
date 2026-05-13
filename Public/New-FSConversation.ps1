@@ -21,9 +21,6 @@ function New-FSConversation {
     .PARAMETER User
         Agent user ID to assign the conversation to.
 
-    .PARAMETER ThreadType
-        Type of the initial thread: customer (default), message, or note.
-
     .PARAMETER Status
         Conversation status: active, pending, or closed. Defaults to active.
 
@@ -55,9 +52,6 @@ function New-FSConversation {
 
         [int]$User,
 
-        [ValidateSet("customer", "message", "note")]
-        [string]$ThreadType = "customer",
-
         [ValidateSet("active", "pending", "closed")]
         [string]$Status = "active",
 
@@ -75,7 +69,7 @@ function New-FSConversation {
         mailboxId = $MailboxId
         subject   = $Subject
         customer  = @{ email = $Customer }
-        threads   = @(@{ type = $ThreadType; text = $Text })
+        threads   = @(@{ type = "message"; text = $Text })
         status    = $Status
     }
 
