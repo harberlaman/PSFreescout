@@ -69,7 +69,7 @@ function New-FSConversation {
         mailboxId = $MailboxId
         subject   = $Subject
         customer  = @{ email = $Customer }
-        threads   = @(@{ type = "message"; text = $Text })
+        threads   = @(@{ type = "customer"; text = $Text })
         status    = $Status
     }
 
