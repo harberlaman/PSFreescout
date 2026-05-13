@@ -65,7 +65,7 @@ function Set-FSTag {
                     $existing = Invoke-RestMethod -Uri $getUri -Headers $headers -Method Get
                     $existingTags = @()
                     if ($existing._embedded.tags) {
-                        $existingTags = $existing._embedded.tags | ForEach-Object { $_.name }
+                        $existingTags = @($existing._embedded.tags | ForEach-Object { $_.name })
                     }
                 }
                 catch {
