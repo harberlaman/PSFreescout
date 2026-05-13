@@ -49,7 +49,7 @@ function Update-FSConversation {
 
     if ($Subject) { $bodyHash.subject = $Subject }
     if ($Status)  { $bodyHash.status = $Status }
-    if ($User)    { $bodyHash.user = $User }
+    if ($User)    { $bodyHash.assignTo = $User; $bodyHash.byUser = $User }
     if ($PSBoundParameters.ContainsKey('Tags')) { $bodyHash.tags = @($Tags) }
 
     if ($bodyHash.Count -eq 0) {
